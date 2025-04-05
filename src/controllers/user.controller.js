@@ -1,8 +1,9 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import  { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import validator from "validator";
 
 const userRegister = asyncHandler(async (req, res) => {
   // Pre-plan what we gonna do
@@ -14,7 +15,6 @@ const userRegister = asyncHandler(async (req, res) => {
   // create user object : create entry in database
   // remove password & refresh token from response
   // send response
-
 
   // taking data from re.body
   const { fullName, username, email, password } = req.body;
@@ -28,25 +28,33 @@ const userRegister = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required");
   }
 
+  /* // Validating email with a package validator 
+  if(!validator.isEmail(email)) {
+    throw new ApiError(400 , "Email is incorrect");
+  } */
 
-  // Checking if already exist 
+  // Checking if already exist
   // (imp) ( $or: [{} , {},...]) => you can open for any logical operation
-  const userExist = User.findOne({
-     $or: [{username} , {email}]
-  })
+  const userExist = await User.findOne({
+    $or: [{ username }, { email }],
+  });
 
-  if(userExist) {
-    throw new ApiError(409 , "User with email or username already exist");
+  if (userExist) {
+    throw new ApiError(409, "User with email or username already exist");
   }
 
-
-// Checking for avatar and images 
+  // Checking for avatar and images
   const avatarLocalPath = req.files?.avatar[0].path;
-  const coverImageLocalPath = req.files?.coverImage[0].path;
+//   const coverImageLocalPath = req.files?.coverImage[0].path;
+
+let coverImageLocalPath;
+if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+    coverImageLocalPath = req.files.coverImage[0].path;
+} 
 
   // Checking if avatar is uploaded, which is a required feild
-  if(!avatarLocalPath) {
-    throw new ApiError(400 , "Avatar file is required");
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Avatar file is required1");
   }
 
   // uploading on cloudinary, it takes time so await
@@ -54,33 +62,33 @@ const userRegister = asyncHandler(async (req, res) => {
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
   // checking if avatar is uploaded in cloudinary
-  if(!avatar) {
-    throw new ApiError(400 , "Avatar file is required");
+  if (!avatar) {
+    throw new ApiError(400, "Avatar file is required");
   }
 
   // Adding into the database
   const user = await User.create({
-    username:username.toLowerCase(),
+    username: username.toLowerCase(),
     fullName,
     email,
     avatar: avatar.url,
-    coverImgae: coverImage?.url || "",
-    password
+    coverImage: coverImage?.url || "",
+    password,
   });
 
   // Checking if entry is created in database and also removing password and refreshToken from response
-  const createdUser = await User.findById(user._id).select("-password -refreshToken");
+  const createdUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
 
   // if entry is not done, sending resopone
-  if(!createdUser) {
-    throw new ApiError(500 , "Something went wrong while registration");
+  if (!createdUser) {
+    throw new ApiError(500, "Something went wrong while registration");
   }
 
-  return res.statusCode(201).json(
-    new ApiResponse(200 , createdUser, "User Registered")
-  );
-  
-
+  return res
+    .status(201)
+    .json(new ApiResponse(201, createdUser, "User Registered"));
 });
 
 export { userRegister };
