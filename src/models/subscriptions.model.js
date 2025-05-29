@@ -7,7 +7,7 @@ const subscriptionSchema = new Schema(
       ref: "User",
     },
 
-    channerl: {
+    channel: {
       type: Schema.Types.ObjectId,
       ref: "User",
     },
