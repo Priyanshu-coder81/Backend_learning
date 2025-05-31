@@ -332,8 +332,7 @@ const updateAvatar = asyncHandler(async (req, res) => {
 
   const publicId = getPublicIdFromUrl(avatarUrlToBeDeleted);
 
-  // Only try to delete if we have a valid public ID
-  console.log(publicId);
+ 
   if (publicId) {
     const response = await deleteFromCloudinary(publicId);
     if (!response) {
@@ -512,5 +511,6 @@ export {
   updateAvatar,
   updateCoverImage,
   getCurrentUserProfile,
-  getWatchHistory
+  getWatchHistory,
+  getPublicIdFromUrl
 };

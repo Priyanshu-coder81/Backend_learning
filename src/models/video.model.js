@@ -20,7 +20,7 @@ const videoSchema = new Schema({
         required: true,
     },
     duration: {
-        type: Number,
+        type: Number, // seconds
         required: true,
     },
     views: {
