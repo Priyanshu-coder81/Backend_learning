@@ -1,4 +1,4 @@
-import mongoose, { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId, Schema } from "mongoose";
 import { Video } from "../models/video.model.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -11,8 +11,83 @@ import { deleteFromCloudinary } from "../utils/removeFile.js";
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
   //TODO: get all videos based on query, sort, pagination
-  
 
+  const pageNumber = parseInt(page);
+  const limitNumber = parseInt(limit);
+
+  const sortOrder = sortType === "asc" ? 1 : -1;
+
+  const pipeline = [];
+
+  if (query) {
+    pipeline.push({
+      $match: {
+        $or: [
+          {
+            title: {
+              $regex: query,
+              $options: "i",
+            },
+          },
+          {
+            description: {
+              $regex: query,
+              $options: "i",
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  if (userId) {
+    pipeline.push({
+      $match: {
+        owner: new Schema.Types.ObjectId(userId),
+      },
+    });
+  }
+
+  const videoAggregate = Video.aggregate([
+    ...pipeline,
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "owner",
+        pipeline: [
+          {
+            $project: {
+              fullName: 1,
+              username: 1,
+              avatar: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $unwind: "$owner",
+    },
+    {
+      $sort: {
+        [sortBy]: sortOrder,
+      },
+    },
+  ]);
+
+  const options = {
+    page: pageNumber,
+    limit: limitNumber,
+  };
+
+  const video = await Video.aggregatePaginate(videoAggregate, options);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, video, "Videos fetched successfully"));
+    
 });
 
 const publishAVideo = asyncHandler(async (req, res) => {
@@ -25,8 +100,6 @@ const publishAVideo = asyncHandler(async (req, res) => {
   // 4. If exists --> Upload to cloudinary  and get url
   // 5. Check if uploaded properly in cloudinary
   // 6. If all the things are right - Create a videoschema is mongodb and add the entry in database.
-
-  
 
   if (!title) {
     throw new ApiError(402, "Title is required");
@@ -176,7 +249,7 @@ const updateVideo = asyncHandler(async (req, res) => {
 const deleteVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   //TODO: delete video
- if (!isValidObjectId(videoId)) {
+  if (!isValidObjectId(videoId)) {
     throw new ApiError(400, "Invalid video ID format");
   }
 
@@ -198,45 +271,45 @@ const deleteVideo = asyncHandler(async (req, res) => {
     }
   );
 
-  if(!video) {
+  if (!video) {
     const publicId = getPublicIdFromUrl(videoToBeDeleted);
     if (publicId) {
-        const response = await deleteFromCloudinary(publicId);
-        if (!response) {
-          console.log("Failed to delete from cloudinary");
-        }
+      const response = await deleteFromCloudinary(publicId);
+      if (!response) {
+        console.log("Failed to delete from cloudinary");
       }
+    }
   }
-return res.status(200)
-.json(new ApiResponse(200,video,"Video Deleted Successfully"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, video, "Video Deleted Successfully"));
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
-    const { videoId } = req.params;
+  const { videoId } = req.params;
 
-   if (!isValidObjectId(videoId)) {
+  if (!isValidObjectId(videoId)) {
     throw new ApiError(400, "Invalid video ID format");
   }
 
-    const video = await Video.findById(videoId);
-  
-    if (!video) {
-      throw new ApiError(400, "Invalid Video Id");
-    }
-  
-    const updatedVideo = await Video.findByIdAndUpdate(
-      videoId,
-      {
-        isPublished: !video.isPublished,
-      },
-      { new: true }
-    );
-  
-    return res.status(200).json(
-      new ApiResponse(200, updatedVideo, "Toggled successfully")
-    );
-  });
-  
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(400, "Invalid Video Id");
+  }
+
+  const updatedVideo = await Video.findByIdAndUpdate(
+    videoId,
+    {
+      isPublished: !video.isPublished,
+    },
+    { new: true }
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedVideo, "Toggled successfully"));
+});
 
 export {
   getAllVideos,
