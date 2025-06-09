@@ -203,7 +203,8 @@ const userLoggedOut = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized Access");
@@ -233,7 +234,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
       user._id
     );
-
 
     return res
       .status(200)
@@ -333,7 +333,6 @@ const updateAvatar = asyncHandler(async (req, res) => {
 
   const publicId = getPublicIdFromUrl(avatarUrlToBeDeleted);
 
- 
   if (publicId) {
     const response = await deleteFromCloudinary(publicId);
     if (!response) {
@@ -348,6 +347,8 @@ const updateAvatar = asyncHandler(async (req, res) => {
 
 const updateCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalPath = req.file?.path;
+
+  let coverImageToBeDeleted = req.user?.coverImage;
 
   if (!coverImageLocalPath) {
     throw new ApiError(400, "Avatar file is missing");
@@ -370,6 +371,17 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     },
     { new: true }
   ).select(" -password ");
+
+  if (coverImageToBeDeleted) {
+    let publicId = getPublicIdFromUrl(coverImageToBeDeleted);
+
+    if (publicId) {
+      const response = await deleteFromCloudinary(publicId);
+      if (!response) {
+        console.log("Failed to delete old avatar from Cloudinary");
+      }
+    }
+  }
 
   res
     .status(200)
@@ -451,7 +463,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
   const user = await User.aggregate([
     {
       $match: {
-        _id:  new mongoose.Types.ObjectId(req.user?._id),
+        _id: new mongoose.Types.ObjectId(req.user?._id),
       },
     },
     {
@@ -470,37 +482,44 @@ const getWatchHistory = asyncHandler(async (req, res) => {
               pipeline: [
                 {
                   $project: {
-                    fullName:1,
-                    username:1,
-                    avatar:1
-                  }
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
                 },
               ],
             },
           },
           {
             $addFields: {
-              owner : {
-                $first : "$owner"
-              }
-            }
-          }
+              owner: {
+                $first: "$owner",
+              },
+            },
+          },
         ],
       },
     },
     {
-      $project : {
-        watchHistory:1
-      }
-    }
+      $project: {
+        watchHistory: 1,
+      },
+    },
   ]);
 
-  if(!user?.length) {
+  if (!user?.length) {
     throw new ApiError(400, "Watch History Not found");
   }
 
-  return res.status(200)
-  .json(new ApiResponse(200,user[0].watchHistory, "Watch History fetched successfully"));
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        user[0].watchHistory,
+        "Watch History fetched successfully"
+      )
+    );
 });
 
 export {
@@ -515,5 +534,5 @@ export {
   updateCoverImage,
   getCurrentUserProfile,
   getWatchHistory,
-  getPublicIdFromUrl
+  getPublicIdFromUrl,
 };
