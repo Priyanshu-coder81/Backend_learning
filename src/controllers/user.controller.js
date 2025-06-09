@@ -5,7 +5,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import { deleteFromCloudinary } from "../utils/removeFile.js";
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 const generateAccessAndRefreshToken = async (userId) => {
   const user = await User.findById(userId);
@@ -221,7 +221,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       throw new ApiError(401, "Invalid Refresh Token");
     }
 
-    if (incomingRefreshToken == !user.refreshToken) {
+    if (incomingRefreshToken !== user.refreshToken) {
       throw new ApiError(401, "Refresh Token is expired or used");
     }
 
@@ -230,20 +230,21 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       secure: true,
     };
 
-    const { accessToken, newRefreshToken } = generateAccessAndRefreshToken(
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
       user._id
     );
+
 
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("refreshToken", refreshToken, options)
       .json(
         new ApiResponse(
           200,
           {
             accessToken,
-            refreshToken: newRefreshToken,
+            refreshToken: refreshToken,
           },
           "Access Token Refreshed"
         )
@@ -352,10 +353,12 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar file is missing");
   }
 
-  const coverImage = uploadOnCloudinary(coverImageLocalPath);
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+  console.log("CoverImage URL : ", coverImage);
 
   if (!coverImage.url) {
-    throw new ApiError(500, "Error while uploading CoverImage");
+    throw new ApiError(500, "Error while uploading CoverImage-359");
   }
 
   const user = await User.findByIdAndUpdate(
@@ -413,7 +416,7 @@ const getCurrentUserProfile = asyncHandler(async (req, res) => {
         isSubscribed: {
           $cond: {
             if: {
-              $in: [req.user?._id, "$subcriber.subscribe"],
+              $in: [req.user?._id, "$subscriber.subscriber"],
             },
             then: true,
             else: false,

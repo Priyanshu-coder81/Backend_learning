@@ -43,12 +43,12 @@ const getAllVideos = asyncHandler(async (req, res) => {
   if (userId) {
     pipeline.push({
       $match: {
-        owner: new Schema.Types.ObjectId(userId),
+        owner: new mongoose.Types.ObjectId(userId),
       },
     });
   }
 
-  const videoAggregate = Video.aggregate([
+  const videoAggregate =  Video.aggregate([
     ...pipeline,
     {
       $lookup: {
