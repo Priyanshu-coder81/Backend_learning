@@ -9,13 +9,22 @@ import { getPublicIdFromUrl } from "./user.controller.js";
 import { deleteFromCloudinary } from "../utils/removeFile.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
-  //TODO: get all videos based on query, sort, pagination
+  const {
+    page = 1,
+    limit = 10,
+    query,
+    sortBy = "createdAt",
+    sortType = "desc",
+    userId,
+  } = req.query;
 
   const pageNumber = parseInt(page);
   const limitNumber = parseInt(limit);
-
   const sortOrder = sortType === "asc" ? 1 : -1;
+
+  // Validate sortBy field
+  const allowedSortFields = ["createdAt", "title", "views", "duration"];
+  const finalSortBy = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
 
   const pipeline = [];
 
@@ -48,7 +57,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     });
   }
 
-  const videoAggregate =  Video.aggregate([
+  const videoAggregate = Video.aggregate([
     ...pipeline,
     {
       $lookup: {
@@ -68,11 +77,14 @@ const getAllVideos = asyncHandler(async (req, res) => {
       },
     },
     {
-      $unwind: "$owner",
+      $unwind: {
+        path: "$owner",
+        preserveNullAndEmptyArrays: true,
+      },
     },
     {
       $sort: {
-        [sortBy]: sortOrder,
+        [finalSortBy]: sortOrder,
       },
     },
   ]);
@@ -87,7 +99,6 @@ const getAllVideos = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, video, "Videos fetched successfully"));
-    
 });
 
 const publishAVideo = asyncHandler(async (req, res) => {
@@ -132,14 +143,16 @@ const publishAVideo = asyncHandler(async (req, res) => {
   if (!thumbnail) {
     throw new ApiError(400, "Thumbnail is required");
   }
+
   const duration = videoFile.duration;
 
   const video = await Video.create({
-    videoFile,
-    thumbnail,
+    videoFile: videoFile.url,
+    thumbnail: thumbnail.url,
     title,
     description,
     duration,
+    owner: req.user._id,
   });
 
   return res
@@ -249,6 +262,7 @@ const updateVideo = asyncHandler(async (req, res) => {
 const deleteVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   //TODO: delete video
+  //TODO : DELETE THUMBNAIL , TITLE , DESCRIPTION.
   if (!isValidObjectId(videoId)) {
     throw new ApiError(400, "Invalid video ID format");
   }
