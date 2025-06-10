@@ -7,7 +7,6 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { getPublicIdFromUrl } from "./user.controller.js";
 import { deleteFromCloudinary } from "../utils/removeFile.js";
-import { get } from "http";
 
 const getAllVideos = asyncHandler(async (req, res) => {
   const {
@@ -169,15 +168,44 @@ const getVideoById = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid video ID format");
   }
 
-  const getVideo = await Video.findById(videoId);
+  const videoAggregate = await Video.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(videoId),
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "owner",
+        pipeline: [
+          {
+            $project: {
+              fullName: 1,
+              username: 1,
+              avatar: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $unwind: {
+        path: "$owner",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+  ]);
 
-  if (!getVideo) {
+  if (!videoAggregate) {
     throw new ApiError("Invalid Video Id");
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, getVideo, "Video fetched Successfully"));
+    .json(new ApiResponse(200, videoAggregate, "Video fetched Successfully"));
 });
 
 const updateVideo = asyncHandler(async (req, res) => {
@@ -276,10 +304,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
   const videoToBeDeleted = getVideo.videoFile;
   const thumbnailToBeDeleted = getVideo.thumbnail;
 
-
-  const video = await Video.findByIdAndDelete(
-    videoId
-  );
+  const video = await Video.findByIdAndDelete(videoId);
 
   if (video) {
     const publicId = getPublicIdFromUrl(videoToBeDeleted);
@@ -290,14 +315,14 @@ const deleteVideo = asyncHandler(async (req, res) => {
       if (!response) {
         console.log("Failed to delete Video from cloudinary");
       }
-      if(!response2) {
+      if (!response2) {
         console.log("Failed to Delete Thumbnail from cloudinary");
       }
     }
   }
   return res
     .status(200)
-    .json(new ApiResponse(200, video,"Video Deleted Successfully"));
+    .json(new ApiResponse(200, video, "Video Deleted Successfully"));
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
