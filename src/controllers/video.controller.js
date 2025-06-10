@@ -7,6 +7,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { getPublicIdFromUrl } from "./user.controller.js";
 import { deleteFromCloudinary } from "../utils/removeFile.js";
+import { get } from "http";
 
 const getAllVideos = asyncHandler(async (req, res) => {
   const {
@@ -262,7 +263,6 @@ const updateVideo = asyncHandler(async (req, res) => {
 const deleteVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   //TODO: delete video
-  //TODO : DELETE THUMBNAIL , TITLE , DESCRIPTION.
   if (!isValidObjectId(videoId)) {
     throw new ApiError(400, "Invalid video ID format");
   }
@@ -274,29 +274,30 @@ const deleteVideo = asyncHandler(async (req, res) => {
   }
 
   const videoToBeDeleted = getVideo.videoFile;
+  const thumbnailToBeDeleted = getVideo.thumbnail;
 
-  const video = await Video.findByIdAndUpdate(
-    videoId,
-    {
-      videoFile: null,
-    },
-    {
-      new: true,
-    }
+
+  const video = await Video.findByIdAndDelete(
+    videoId
   );
 
-  if (!video) {
+  if (video) {
     const publicId = getPublicIdFromUrl(videoToBeDeleted);
-    if (publicId) {
+    const publidId2 = getPublicIdFromUrl(thumbnailToBeDeleted);
+    if (publicId && publidId2) {
       const response = await deleteFromCloudinary(publicId);
+      const response2 = await deleteFromCloudinary(publidId2);
       if (!response) {
-        console.log("Failed to delete from cloudinary");
+        console.log("Failed to delete Video from cloudinary");
+      }
+      if(!response2) {
+        console.log("Failed to Delete Thumbnail from cloudinary");
       }
     }
   }
   return res
     .status(200)
-    .json(new ApiResponse(200, video, "Video Deleted Successfully"));
+    .json(new ApiResponse(200, video,"Video Deleted Successfully"));
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
