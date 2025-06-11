@@ -1,4 +1,4 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { isValidObjectId, Schema } from "mongoose";
 import { Comment } from "../models/comment.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -15,7 +15,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
   const commentAggregate = Comment.aggregate([
     {
       $match: {
-        video: new Schema.Types.ObjectId(videoId),
+        video: new mongoose.Types.ObjectId(videoId),
       },
     },
     {
@@ -79,7 +79,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
 
   const comment = await Comment.aggregatePaginate(commentAggregate, options);
 
-  if (!comment?.length) {
+  if (!comment) {
     throw new ApiError(400, "Comments not found");
   }
 
@@ -95,6 +95,12 @@ const addComment = asyncHandler(async (req, res) => {
   // 2. Add to comment schema
 
   const { content } = req.body;
+  const {videoId} = req.params;
+
+  if(!isValidObjectId(videoId)) {
+    throw new ApiError(400,"VideoId is invalid");
+  }
+
 
   if (!content) {
     throw new ApiError(400, "Content field is empty");
@@ -102,6 +108,8 @@ const addComment = asyncHandler(async (req, res) => {
 
   const comment = await Comment.create({
     content: content,
+    owner : req.user?._id,
+    video: videoId,
   });
 
   res
@@ -140,16 +148,8 @@ const deleteComment = asyncHandler(async (req, res) => {
   // TODO: delete a comment
   const { commentId } = req.params;
 
-  const comment = await Comment.findByIdAndUpdate(
+  const comment = await Comment.findByIdAndDelete(
     commentId,
-    {
-      $set: {
-        content: null,
-      },
-    },
-    {
-      new: true,
-    }
   );
 
   if (!comment) {
@@ -158,7 +158,7 @@ const deleteComment = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, comment, "Comment deleted Successfully"));
+    .json(new ApiResponse(200,"Comment deleted Successfully"));
 });
 
 export { getVideoComments, addComment, updateComment, deleteComment };
