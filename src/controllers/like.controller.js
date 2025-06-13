@@ -75,7 +75,6 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, like || [], responseMessage));
-
 });
 
 const toggleTweetLike = asyncHandler(async (req, res) => {
@@ -109,12 +108,11 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, like || [], responseMessage));
-
 });
 
 const getLikedVideos = asyncHandler(async (req, res) => {
   //TODO: get all liked videos
-  // 1. Match userId with comment schema,
+  // 1. Match userId with like schema,
   // 2. aggregate pipline with
 
   const like = await Like.aggregate([
@@ -136,6 +134,15 @@ const getLikedVideos = asyncHandler(async (req, res) => {
               localField: "owner",
               foreignField: "_id",
               as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
             },
           },
           {
@@ -146,14 +153,14 @@ const getLikedVideos = asyncHandler(async (req, res) => {
               owner: 1,
             },
           },
+          {
+            $unwind: "$owner",
+          },
         ],
       },
     },
     {
-      $unwind: {
-        path: true,
-        preserveNullAndEmptyArrays: true,
-      },
+      $unwind: "$video",
     },
   ]);
 

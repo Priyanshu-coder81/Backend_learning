@@ -1,6 +1,6 @@
 import mongoose, { isValidObjectId } from "mongoose";
 import { User } from "../models/user.model.js";
-import { Subscription } from "../models/subscription.model.js";
+import { Subscription } from "../models/subscriptions.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -13,7 +13,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
   // 2. If its not present add it.
   // 3. If its present then delete the entry.
 
-  const isExist = Subscription.findOneAndDelete({
+  const isExist = await Subscription.findOneAndDelete({
     channel: channelId,
     subscriber: req.user?._id,
   });
@@ -58,10 +58,10 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
     {
       $lookup: {
         from: "users",
-        localfield: "subscriber",
+        localField: "subscriber",
         foreignField: "_id",
         as: "subscriber",
-        pipleline: [
+        pipeline: [
           {
             $project: {
               username: 1,
@@ -73,7 +73,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
       },
     },
     {
-      $unwind: true,
+      $unwind: "$subscriber",
     },
   ]);
 
@@ -82,7 +82,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
   }
 
   return res
-    .statu(200)
+    .status(200)
     .json(
       new ApiResponse(
         200,
@@ -109,10 +109,10 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
     {
       $lookup: {
         from: "users",
-        localfield: "channel",
+        localField: "channel",
         foreignField: "_id",
         as: "channel",
-        pipleline: [
+        pipeline: [
           {
             $project: {
               fullName: 1,
@@ -125,7 +125,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
     },
     {
       $unwind: {
-        path: true,
+        path: "$channel",
         preserveNullAndEmptyArrays: true,
       },
     },
