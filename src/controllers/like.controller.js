@@ -6,36 +6,37 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 const toggleVideoLike = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
-  //TODO: toggle like on video
-
-  // 1. Check if videoId exist in like schema or not
-  // 2. If not exists create one with likedby field
-  // 3. If exists delete from schema
 
   if (!videoId) {
-    throw new ApiError(400, "Invaild Video Id");
+    throw new ApiError(400, "Invalid Video ID");
   }
 
-  const isExist = Like.findByIdAndDelete(videoId, {
-    new: true,
+  // Check if like already exists
+  const existingLike = await Like.findOneAndDelete({
+    video: videoId,
+    likedBy: req.user._id,
   });
 
-  let like;
+  let responseMessage = "Video unliked successfully";
+  let likeDoc = null;
 
-  if (!isExist) {
-    like = await Like.create({
-      likedBy: req.user?._id,
+  // If not exists, create one
+  if (!existingLike) {
+    likeDoc = await Like.create({
+      likedBy: req.user._id,
       video: videoId,
     });
-  }
 
-  if (!like) {
-    throw new ApiError(400, "Error while creating entry in database");
+    if (!likeDoc) {
+      throw new ApiError(500, "Error while liking the video");
+    }
+
+    responseMessage = "Video liked successfully";
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, like, "Toggle Video Like Successfully"));
+    .json(new ApiResponse(200, likeDoc || {}, responseMessage));
 });
 
 const toggleCommentLike = asyncHandler(async (req, res) => {
@@ -50,24 +51,31 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
     throw new ApiResponse(401, "Invalid Comment Id");
   }
 
-  const isExist = Like.findByIdAndDelete(commentId, {
-    new: true,
+  const isExist = await Like.findOneAndDelete({
+    likedBy: req.user?._id,
+    comment: commentId,
   });
-  let like;
+
+  let responseMessage = "Comment unliked Successfully";
+  let like = null;
+
   if (!isExist) {
     like = await Like.create({
       likedBy: req.user?._id,
       comment: commentId,
     });
-  }
 
-  if (!like) {
-    throw new ApiError(400, "Error while creating entry in database");
+    if (!like) {
+      throw new ApiError(400, "Error while creating in Like schema");
+    }
+
+    responseMessage = "Comment Liked Successfully";
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, like, "Toggled Comment like successfully"));
+    .json(new ApiResponse(200, like || [], responseMessage));
+
 });
 
 const toggleTweetLike = asyncHandler(async (req, res) => {
@@ -77,26 +85,31 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
   if (!isValidObjectId(tweetId)) {
     throw new ApiResponse(401, "Invalid Tweet Id");
   }
-
-  const isExist = Like.findByIdAndDelete(tweetId, {
-    new: true,
+  const isExist = await Like.findOneAndDelete({
+    likedBy: req.user?._id,
+    tweet: tweetId,
   });
 
-  let like;
+  let responseMessage = "Comment unliked Successfully";
+  let like = null;
+
   if (!isExist) {
     like = await Like.create({
       likedBy: req.user?._id,
       tweet: tweetId,
     });
-  }
 
-  if (!like) {
-    throw new ApiError(400, "Error while creating entry in database");
+    if (!like) {
+      throw new ApiError(400, "Error while creating in Like schema");
+    }
+
+    responseMessage = "Tweet Liked Successfully";
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, like, "Toggled Tweet like successfully"));
+    .json(new ApiResponse(200, like || [], responseMessage));
+
 });
 
 const getLikedVideos = asyncHandler(async (req, res) => {
@@ -144,13 +157,13 @@ const getLikedVideos = asyncHandler(async (req, res) => {
     },
   ]);
 
-  if(!like) {
-    throw new ApiError(400,"Something went wrong while aggregate pipelines")
+  if (!like) {
+    throw new ApiError(400, "Something went wrong while aggregate pipelines");
   }
 
   return res
-  .status(200)
-  .json(new ApiResponse(200,like,"Liked Videos feteched Successfully"));
+    .status(200)
+    .json(new ApiResponse(200, like, "Liked Videos feteched Successfully"));
 });
 
 export { toggleCommentLike, toggleTweetLike, toggleVideoLike, getLikedVideos };
