@@ -143,7 +143,7 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     playlistId,
     {
       $addToSet: {
-        video: videoId,
+        videos: videoId,
       },
     },
     {
@@ -157,47 +157,51 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(
-      new ApiResponse(200, playlist, "Video added to Plalist Successfully")
+      new ApiResponse(200, playlist, "Video added to Playlist Successfully")
     );
 });
-
 const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
-  const { playlistId, videoId } = req.params;
-  // TODO: remove video from playlist
-
-  if (!isValidObjectId(playlistId)) {
-    throw new ApiError(400, "Invalid Playlist Id");
-  }
-  if (!isValidObjectId(videoId)) {
-    throw new ApiError(400, "Invalid Video Id");
-  }
-
-  let playlist = await Playlist.findById(playlistId);
-
-  if (!playlist) {
-    throw new ApiError(400, "No such Playlist exists");
-  }
-
-  let response = "Video Removed from Playlist successfully";
-  let updatedPlaylist;
-  if (playlist.video.includes(videoId)) {
-    updatedPlaylist = await Playlist.findByIdAndUpdate(
+    const { playlistId, videoId } = req.params;
+  
+    if (!isValidObjectId(playlistId)) {
+      throw new ApiError(400, "Invalid Playlist ID");
+    }
+  
+    if (!isValidObjectId(videoId)) {
+      throw new ApiError(400, "Invalid Video ID");
+    }
+  
+    const playlist = await Playlist.findById(playlistId);
+  
+    if (!playlist) {
+      throw new ApiError(404, "Playlist not found");
+    }
+  
+    const isVideoInPlaylist = playlist.videos.includes(videoId);
+  
+    if (!isVideoInPlaylist) {
+      throw new ApiError(400, "Video not found in this playlist");
+    }
+  
+    const updatedPlaylist = await Playlist.findByIdAndUpdate(
       playlistId,
       {
         $pull: {
-          video: videoId,
+          videos: videoId, 
         },
       },
-      {
-        new: true,
-      }
+      { new: true }
     );
-  } else {
-    response = "Video is not in the playlist";
-  }
-
-  return res.status(200).json(new ApiResponse(200, updatedPlaylist, response));
-});
+  
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        updatedPlaylist.videos.length > 0 ? updatedPlaylist : [],
+        "Video removed from playlist successfully"
+      )
+    );
+  });
+  
 
 const deletePlaylist = asyncHandler(async (req, res) => {
   const { playlistId } = req.params;
