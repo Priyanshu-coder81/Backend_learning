@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { Video } from "../models/video.model.js";
-import { Subscription } from "../models/subscription.model.js";
+import { Subscription } from "../models/subscriptions.model.js";
 import { Like } from "../models/like.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -150,8 +150,10 @@ const getChannelVideos = asyncHandler(async (req, res) => {
       },
     },
     {
-      $unwind: "$owner",
-      preserveNullAndEmptyArrays: true,
+      $unwind: {
+        path: "$ownerDetails",
+        preserveNullAndEmptyArrays: true,
+      },
     },
   ]);
 
