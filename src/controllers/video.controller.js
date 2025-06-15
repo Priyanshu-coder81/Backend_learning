@@ -120,13 +120,13 @@ const publishAVideo = asyncHandler(async (req, res) => {
     throw new ApiError(402, "Description is required");
   }
 
-  const videoLocalFilePath = req.files?.videoFile[0].path;
+  const videoLocalFilePath = req.files?.videoFile[0]?.path;
 
   if (!videoLocalFilePath) {
     throw new ApiError(400, "Video File is unable to upload, Retry");
   }
 
-  const thumbnailLocalFilePath = req.files?.thumbnail[0].path;
+  const thumbnailLocalFilePath = req.files?.thumbnail[0]?.path;
 
   if (!thumbnailLocalFilePath) {
     throw new ApiError(400, "Thumbnail is unable to upload, Retry");
@@ -366,12 +366,14 @@ const addVideoView = asyncHandler(async (req, res) => {
     { new: true }
   );
 
-  if(!video) {
-    throw new ApiError(400,"Video Does not exists");
+  if (!video) {
+    throw new ApiError(400, "Video Does not exists");
   }
 
-  return res.status(200).json(new ApiResponse(200,video , "View Incremented Successfully"));
- });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, video, "View Incremented Successfully"));
+});
 
 export {
   getAllVideos,
