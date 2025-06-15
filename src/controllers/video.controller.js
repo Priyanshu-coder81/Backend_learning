@@ -351,6 +351,28 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, updatedVideo, "Toggled successfully"));
 });
 
+const addVideoView = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid Video Id");
+  }
+
+  const video = await Video.findByIdAndUpdate(
+    videoId,
+    {
+      $inc: { views: 1 },
+    },
+    { new: true }
+  );
+
+  if(!video) {
+    throw new ApiError(400,"Video Does not exists");
+  }
+
+  return res.status(200).json(new ApiResponse(200,video , "View Incremented Successfully"));
+ });
+
 export {
   getAllVideos,
   publishAVideo,
@@ -358,4 +380,5 @@ export {
   updateVideo,
   deleteVideo,
   togglePublishStatus,
+  addVideoView,
 };
